@@ -222,8 +222,8 @@ class Geometry(object):
 
   def draw(self):
       '''Draw the Simulation'''
-      G4.gRunManager.SetUserInitialisation(g4py.ExN01pl.Construct())
-      G4.gRunManager.SetUserInitialisation(self.__materials)
+      G4.gRunManager.SetUserInitialization(g4py.ExN01pl.Construct())
+      G4.gRunManager.SetUserInitialization(self.__materials)
       G4.gRunManager.Initialize()
       ui_vol = init_ui_instance()
       ui_vol.ApplyCommand('/vis/drawVolume')
