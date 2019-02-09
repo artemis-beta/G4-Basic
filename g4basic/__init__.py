@@ -24,10 +24,10 @@ import g4py.ExN01pl
 import g4py.ParticleGun
 
 
-_color_dict = { 'Red' : (1,0,0,0), 'Green' : (0,1,0,0),
-                'Blue' : (0,0,1,0), 'Yellow' : (1,1,0,0),
-                'Cyan' : (0,1,1,0), 'Magenta' : (1,0,1,0),
-                'White' : (1,1,1,0), 'Black' : (0,0,0,0)}
+_color_dict = { 'Red' : (1,0,0,1), 'Green' : (0,1,0,1),
+                'Blue' : (0,0,1,1), 'Yellow' : (1,1,0,1),
+                'Cyan' : (0,1,1,1), 'Magenta' : (1,0,1,1),
+                'White' : (1,1,1,1), 'Black' : (0,0,0,1)}
 
 def init_ui_instance(theta_phi = (80,20), verbose=0):
     '''
