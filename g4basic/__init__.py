@@ -25,8 +25,8 @@ _phys_lists = [
     'QGSP_BIC_HP',
     'QGSP_FTFP_BERT',
     'QGSP_INCLXX',
-    'QGSP_INCLXX_HP'.
-    'QGS_BIC']
+    'QGSP_INCLXX_HP',
+    'QGS_BIC',
     'Shielding']
 
 _colour_dict = { 'red'   : (1,0,0,1), 'green'   : (0,1,0,1),
@@ -71,19 +71,19 @@ class G4Session(object):
         Volumes Dictionary
         ------------------
 
-        {
-              'Volume1' : {'vol_type'   : 'Box',
+        {{
+              'Volume1' : {{'vol_type'   : 'Box',
                            'position'   : (0, 0, 0),
                            'dimensions' : ('10m', '10m', '3m'),
-                           'material'   : 'Si'},
+                           'material'   : 'Si'}},
               ...
-        }
+        }}
 
         Particle Gun Dictionary
         -----------------------
 
-        {'particle' : 'e-', 'energy' : '100GeV', 'direction' : (0,0,1),
-         'position : (0, 0, '-15m')}
+        {{'particle' : 'e-', 'energy' : '100GeV', 'direction' : (0,0,1),
+         'position : (0, 0, '-15m')}}
 
  
         Physics Lists
@@ -192,11 +192,11 @@ class G4Session(object):
         
         try:
             self._log_vols[name] = g4py.ezgeom.G4EzVolume(name)
-            _color = G4.G4Color(*_colour_dict[colour.lower()])
-        #self._log_vols[name].SetColor(*_colour_dict[colour.lower()][:-1])
             self._logger.info('Creating {} Volume from {} of size ({}, {}, {})'.format(vol_type, material, *dimensions))
             getattr(self._log_vols[name], 'Create{}Volume'.format(vol_type))(self._get_material(material),
                                                                 *self._parse_units(dimensions))
+            _color = G4.G4Color(*_colour_dict[colour.lower()])
+            self._log_vols[name].SetColor(_color)
             self._log_vols[name].PlaceIt(G4.G4ThreeVector(*position))
 
         except Exception as e:
