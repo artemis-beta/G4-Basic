@@ -1,9 +1,11 @@
 import g4basic as g4b
 
+volume_dict = {'Box' : {'vol_type' : 'Box', 'position' : (0,0,0),
+                        'dimensions' : ('11m', '10m', '10m'), 'material' : 'Si'}}
 
-my_geo = g4b.Geometry('MyGeo', 'AIR')
+gun_dict = {'particle' : 'e-', 'energy' : 1000, 'direction' : (0,0,1),
+            'position' : (0,0,'-20m')}
 
-my_geo.add_volume('Box', 'TestBox', 'Si', ('5m', '5m', '1m'), (0,0,0))
+my_sim = g4b.G4Session(volumes_dict=volume_dict, gun_opts_dict=gun_dict)
 
-my_gun = g4b.PGun('MyPGun', 'e-', '100GeV', (0,0,'-1m'), (0,0,'100GeV')) 
-my_geo.draw()
+my_sim.runSimulation()

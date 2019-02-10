@@ -1,233 +1,163 @@
-##############################################################################
-#                                                                            #
-#                          Geant4 Basic for Python                           #
-#                                                                            #
-# This module exists to try to simplify the diverse number of brilliant      #
-# possibilities within Geant4 into a simple and east to use form. Currently  #
-# it strips way many of the advanced features to allow the user to do two    #
-# simple things:                                                             #
-#                                                                            #
-#  - Create a Geometry                                                       #
-#  - Create a Particle Gun & Fire at that Geometry                           #
-#                                                                            #
-# Furthermore it also allows you to use strings to define dimensions, for    #
-# example a coordinate can be of the form ('1m', '1m', '1m'), a parser then  #
-# converts these into G4 units.                                              #
-#                                                                            #
-##############################################################################
-
 import Geant4 as G4
 import g4py.ezgeom
 import g4py.NISTmaterials
-import g4py.ExN01pl
-
 import g4py.ParticleGun
 
+import logging
 
-_color_dict = { 'Red' : (1,0,0,1), 'Green' : (0,1,0,1),
-                'Blue' : (0,0,1,1), 'Yellow' : (1,1,0,1),
-                'Cyan' : (0,1,1,1), 'Magenta' : (1,0,1,1),
-                'White' : (1,1,1,1), 'Black' : (0,0,0,1)}
+logging.basicConfig()
 
-def init_ui_instance(theta_phi = (80,20), verbose=0):
-    '''
-    Initialise a UI instance, this is required first!
+_phys_list_dict = ['QGSP_BERT', 'FTFP_BERT']
 
-    Optional Arguments
-    ------------------
+_colour_dict = { 'red'   : (1,0,0,1), 'green'   : (0,1,0,1),
+                 'blue'  : (0,0,1,1), 'yellow'  : (1,1,0,1),
+                 'cyan'  : (0,1,1,1), 'magenta' : (1,0,1,1),
+                 'white' : (1,1,1,1), 'black'   : (0,0,0,1) }
 
-    theta_phi      (float, float)         Orientation angles in
-                                          theta-phi in degrees.
-                                          Default = (80,20)
+_g4_vol_types = {'Box'    : 'CreateBoxVolume(G4Material, dx, dy, dz)', 
+                 'Tube'   : 'CreateTubeVolume(G4Material, rmin, rmax,'+
+                            ' z, phi0=0, phi=360*deg)',
+                 'Cone'   : 'CreateConeVolume(G4Material, rmin1, rmax1,'+
+                            ' rmin2, rmax2, dz, phi0=0, dphi)', 
+                 'Sphere' : 'CreateSphereVolume(G4Material, rmin, rmax, phi0=0, '+
+                            'dphi=360*deg, theta0=0, dtheta=180.*deg)', 
+                 'Orb'    : 'CreateOrbVolume(G4material, rmax)'}
 
-    verbose        (int)                  Verbosity level.
-                                          Default = 0.
-    '''
-    ui = G4.G4UImanager.GetUIpointer()
-    ui.ApplyCommand("/run/verbose {}".format(verbose))
-    ui.ApplyCommand("/event/verbose {}".format(verbose))
-    ui.ApplyCommand("/tracking/verbose {}".format(verbose))
-    ui.ApplyCommand("/run/initialize")
-    ui.ApplyCommand("/run/verbose {}".format(verbose))
-    ui.ApplyCommand("/vis/open OGLIX")
-    ui.ApplyCommand("/vis/scene/create")
-    ui.ApplyCommand("/vis/scene/endOfEventAction accumulate")
-    ui.ApplyCommand("/vis/scene/add/volume")
-    ui.ApplyCommand("/vis/scene/add/trajectories")
-    ui.ApplyCommand("/vis/scene/add/hits")
-    ui.ApplyCommand("/vis/viewer/set/viewpointThetaPhi {} {}".format(*theta_phi))
-    return ui
+def isBoostArgumentError(exception):
+    if 'Boost.Python.ArgumentError' in str(type(exception)):
+        return True
+    return False
 
-def parse_units(string):
-    '''
-    The unit parser: converts units as strings into the corresponding
-    unit in Geant4
-    
-    Argument
-    --------
+class G4Session(object):
+    def __init__(self, world_material='AIR', volumes_dict=None,
+                 gun_opts_dict=None, phys_list='QGSP_BERT'):
+        self._logger = logging.getLogger('G4Basic')
+        self._logger.setLevel('INFO')
+        self._constructs = self._initialise(phys_list)
+        self._create_world()
+        self._log_vols = {}
+        if volumes_dict:
+            self._make_vols_from_dict(volumes_dict)
+        if gun_opts_dict:
+            self._make_gun_from_dict(gun_opts_dict)
 
-    string     (string)             String to be parser, e.g. '5m'
-    '''
-    dict_units = { 'MeV' : G4.MeV, 'GeV' : G4.GeV, 'keV' : G4.keV,
-                   'cm' : G4.cm, 'mm' : G4.mm, 'm' : G4.m }
-    out = 1
-    if not isinstance(string, str):
-       return string
-    for key in dict_units:
-        if key in string:
-           out *= dict_units[key]
-           out *= float(string.replace(key, ''))
-           break
-    else:
-        out = float(string)
-    return out
+    def _parse_units(self, string):
+        '''
+        The unit parser: converts units as strings into the corresponding
+        unit in Geant4
+        
+        Argument
+        --------
+        string     (string)             String to be parser, e.g. '5m'
+        '''
+        dict_units = { 'MeV' : G4.MeV, 'GeV' : G4.GeV, 'keV' : G4.keV,
+                       'cm' : G4.cm, 'mm' : G4.mm, 'm' : G4.m }
+        out = 1
 
-class PGun(object):
-  '''Particle Gun Class'''
-  def __init__(self, name, particle, energy, position, momentum):
-      '''
-      Creates a new Particle Gun which can be fired at a Geometry
-  
-      Arguments
-      ---------
+        if isinstance(string, list) or isinstance(string, tuple):
+            _output = [self._parse_units(i) for i in string]
+            return _output
+        if not isinstance(string, str):
+           return string
+        for key in dict_units:
+            if key in string:
+               out *= dict_units[key]
+               out *= float(string.replace(key, ''))
+               break
+        else:
+            out = float(string)
+        return out
 
-      name     (string)                An identifier for the Particle Gun
- 
-      particle (string)                The type of particle to be fired
+    def _make_gun_from_dict(self, in_dict):
+        self.addParticleGun(**in_dict)
 
-      energy   (string)                The energy of the gun, e.g. 1 or '5GeV'
-               (float)
+    def _make_vols_from_dict(self, in_dict):
+        for volume in in_dict:
+            self.addVolume(name=volume, **in_dict[volume])
 
-      position (float,float,float)     Coordinates of the particle gun
-               (string,string,string)
+    def _get_material(self, name):
+        name = name if 'G4_' in name else 'G4_'+name
+        return G4.G4Material.GetMaterial(name)
 
-      momentum (float,float,float)     The momentum vector of the gun.
-               (string,string,string)  
-      '''
-      self._name = name
-      self.__gun_obj = g4py.ParticleGun.Construct()
-      self.__gun_obj.SetParticleByName(particle)
-      positions = [ parse_units(i) for i in position ]
-      self.__gun_obj.SetParticlePosition(G4.G4ThreeVector(*positions))
-      momenta = [ parse_units(j) for j in momentum ]
-      self.__gun_obj.SetParticlePosition(G4.G4ThreeVector(*momenta))
+    def _initialise(self, phys_list):
+        g4py.ezgeom.Construct()
+        g4py.NISTmaterials.Construct()
+        try:
+             assert phys_list in _phys_list_dict
+        except AssertionError as e:
+             self._logger.error("Physics List not found, options are: {}".format(' '.join(_phys_list_dict)))
+        G4.gRunManager.SetUserInitialization(getattr(G4, phys_list)())
+            
 
-  def get_gun(self):
-      '''Returns the Geant4 gun object'''
-      return self.__gun_obj
+    def _create_world(self, material='AIR',
+                      dimensions=(50.*G4.m, 50.*G4.m, 50.*G4.m)):
 
-  __slots__ = ('__gun_obj')
+        self._logger.info('Creating New World of {} of size ({}, {}, {})'.format(material, *dimensions))
 
-class Geometry(object):
-  '''Geonetry Class'''
-  def __init__(self, name, world_material, world_dimensions=None):
-      '''
-      Firstly creates an environment for the geometry then allows you
-      to add volumes/objects.
+        g4py.ezgeom.SetWorldMaterial(self._get_material(material))
+        g4py.ezgeom.ResizeWorld(*self._parse_units(dimensions))
+     
+    def addVolume(self, name, material, vol_type, dimensions, position, colour='red'):
+        try:
+            assert vol_type in _g4_vol_types
+        except AssertionError as e:
+            self._logger.error("Volume of type '{}' not present in GEANT4".format(vol_type))
+            raise e
+        
+        try:
+            self._log_vols[name] = g4py.ezgeom.G4EzVolume(name)
+            _color = G4.G4Color(*_colour_dict[colour.lower()])
+        #self._log_vols[name].SetColor(*_colour_dict[colour.lower()][:-1])
+            self._logger.info('Creating {} Volume from {} of size ({}, {}, {})'.format(vol_type, material, *dimensions))
+            getattr(self._log_vols[name], 'Create{}Volume'.format(vol_type))(self._get_material(material),
+                                                                *self._parse_units(dimensions))
+            self._log_vols[name].PlaceIt(G4.G4ThreeVector(*position))
 
-      Arguments
-      ---------
+        except Exception as e:
+            if isBoostArgumentError(e):
+                self._logger.error('Invalid Arguments for Volume Creation')
+                self._logger.error(_g4_vol_types[vol_type])
+                self._logger.error('Arguments:\n\tMaterial: {}\n\tDimension: {}\n\tPosition: {}'.format(material, 
+                                   ', '.join([str(i) for i in dimensions]),
+                                   ', '.join([str(i) for i in position])))
+            raise e
 
-      name             (string)             Unique identifier for the geometry
+    def addParticleGun(self, particle, position, energy=None, direction=None, momentum=None):
+        self._pgun = g4py.ParticleGun.Construct()
+        self._pgun.SetParticleByName(particle)
+        position = self._parse_units(position)
+        self._pgun.SetParticlePosition(G4.G4ThreeVector(*position))
+        if momentum:
+            self._logger.warning('PGun: Option for Momentum given, will ignore any options'
+                                 +'for Direction or Energy')
 
-      world_material   (string)             Geant4 Material (see Geant4 materials database)
+            momentum = self._parse_units(momentum)
+            self._pgun.SetParticlePosition(G4.G4ThreeVector(*momentum))
+        elif energy:
+            direction = self._parse_units(direction)
+            energy = self._parse_units(energy)
+            self._pgun.SetParticleEnergy(energy)
+            self._pgun.SetParticleMomentumDirection(G4.G4ThreeVector(*direction))
+            
+    def runSimulation(self, nevts=1, viewer='OGLIX', hits=True, trajectories='smooth',
+                      logo=False, view=(80,20)):
+        self._ui = G4.G4UImanager.GetUIpointer()
+        self._ui.ApplyCommand('/run/initialize')
+        self._ui.ApplyCommand('/vis/open {}'.format(viewer))
+        self._ui.ApplyCommand('/vis/viewer/set/viewpointThetaPhi {} {}'.format(*view))
+        self._ui.ApplyCommand('/vis/drawVolume')
+        if hits:
+            self._ui.ApplyCommand('/vis/scene/add/hits')
+        if trajectories:
+            if trajectories.lower() == 'smooth':
+                self._ui.ApplyCommand('/vis/scene/add/trajectories smooth')
+            else:
+                self._ui.ApplyCommand('/vis/scene/add/trajectories')
+        if logo:
+            if logo.lower() == '2d':
+                self._ui.ApplyCommand('/vis/scene/add/2Dlogo')
+            else:
+                self._ui.ApplyCommand('/vis/scene/add/logo')
 
-
-      Optional Arguments
-      ------------------
-
-      world_dimensions (float,float,float)     Dimensions of the 'world' volume
-                       (string,string,string)
-
-      '''
-      self.constuct = g4py.ezgeom.Construct()
-      self.__materials = g4py.NISTmaterials.Construct()
-      world_material_G4 = world_material.replace('G4','')
-      self.name = name
-      self.world_material = world_material
-      g4py.ezgeom.SetWorldMaterial(G4.G4Material.GetMaterial('G4_{}'.format(world_material_G4)))
-      if world_dimensions:
-         world_dimensions = [ parse_units(i) for i in world_dimensions ]
-         g4py.ezgeom.ResizeWorld(*world_dimensions)
-      self.__volumes = {}
-
-  def __add__(self, other):
-      assert self.world_material == other.world_material, "World Materials do not match"
-      temp = Geometry('{}+{}'.format(self.name, other.name), self.world_material)
-      volumes = self.volumes.copy()
-      volumes.update(other.volumes)
-      temp.__volumes = volumes
-      return temp
-
-  def add_volume(self, type_of_vol, name, material, dimensions, position, color=None):
-      '''
-      Add a new volume to the world
-
-      Arguments
-      ---------
-
-      type_of_vol    (string)               Type of volume to generate
-                                            ('Box'/'Tube'/'Cone'/'Sphere'/'Orb')
-
-      name           (string)               Unique identifier for the volume
-
-      dimensions     (float, ...)           List of dimensions for the particular type
-                     (string, ...)
-
-      position       (float, float, float)  Position of the volume
-                     (string,string,string)
-   
-      Optional Arguments
-      ------------------
-
-      color          (float,float,float)        R G B A
-                     (string)                   'Red'/'Green'/'Blue'/'Yellow'
-                                                'Magenta'/'Black'/'White'
-      '''
-      self.__volumes[name] = g4py.ezgeom.G4EzVolume(name)
-      dimensions = [ parse_units(i) for i in dimensions ]
-      position   = [ parse_units(j) for j in position ]
-      getattr(self.__volumes[name], 'Create{}Volume'.format(type_of_vol))(G4.G4Material.GetMaterial('G4_{}'.format(material)), *dimensions)
-      self.__volumes[name].PlaceIt(G4.G4ThreeVector(*position))
-      if color:
-        if isinstance(color, string):
-            for key in _color_dict:
-                if key.lower() == string.lower():
-                    color = _color_dict[string]
-        self.__volumes[name].SetColor(G4.G4Color(*color))
-
-  def resize_world(self, dimensions):
-      '''
-      Change the dimensions of the world.
-
-      Argument
-      --------
-
-      dimensions  (float,float,float)      New world dimensions in x,y,z
-                  (string,string,string)
-      '''
-      dimensions = [ parse_units(i) for i in dimensions ]
-      g4py.ezgeom.ResizeWorld(*world_dimensions)
-
-  def __iter__(self):
-      for key in self.__volumes:
-          yield self.__volumes[key]
-
-  def __getitem__(self, i):
-      if isinstance(i, int):
-         return self.__volumes[self.__volumes.keys()[i]]
-      else:
-         return self.__volumes[i]
-
-
-  def draw(self):
-      '''Draw the Simulation'''
-      G4.gRunManager.SetUserInitialization(g4py.ExN01pl.Construct())
-      G4.gRunManager.SetUserInitialization(self.__materials)
-      G4.gRunManager.Initialize()
-      ui_vol = init_ui_instance()
-      ui_vol.ApplyCommand('/vis/drawVolume')
-
-  __slots__ = ('name', 'world_material', '__volumes', '__materials')
-
-
+        if nevts:
+            self._ui.ApplyCommand('/run/beamOn {}'.format(nevts))
