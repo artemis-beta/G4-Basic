@@ -10,7 +10,12 @@ Before discussing G4-Basic I would firstly like to introduce the unit parser. Tr
 
 To create a simulation in one statement you need to create two dictionaries, one containing all the parameters for the geometry objects, and one which will be used to initialise the particle gun. Optionally you can add volumes and create particle guns later using `addVolume` and `addParticleGun`.
 
-For the volume dictionary the required arguments are the type of volume `vol_type` of which there are five types: `Box`, `Tube`, `Cone`, `Sphere` and `Orb`, the position of the shape `position` which can be expressed either as floats or strings which are parsed, the material of the shape (list given by running `python -c "import Geant4; print Geant4.gMaterialTable"`) `material` and the optional parameter `colour`. You can view the required parameters for the shapes [here](http://www.apc.univ-paris7.fr/~franco/g4doxy4.10/html/class_g4_ez_volume.html), however if the parameters are invalid when running the script the information will be expressed within the logging information also. 
+For the volume dictionary the required arguments are the type of volume `vol_type` of which there are five types: `Box`, `Tube`, `Cone`, `Sphere` and `Orb`, the position of the shape `position` which can be expressed either as floats or strings which are parsed, the material of the shape `material` and the optional parameter `colour`. 
+A list of materials is given by running:
+```
+g4basic.listMaterials()
+```
+You can view the required parameters for the shapes [here](http://www.apc.univ-paris7.fr/~franco/g4doxy4.10/html/class_g4_ez_volume.html), however if the parameters are invalid when running the script the information will be expressed within the logging information also. 
 
 To create a 10x10x3m cuboid of lead:
 ```
