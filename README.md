@@ -1,6 +1,6 @@
 # G4-Basic
 
-The purpose of this module is to greatly simplify the creation of basic geometries and the firing of particle guns at these geometries. This method features a single class which can great a simulation by using just three parameters.
+The purpose of this module is to greatly simplify the creation of basic geometries and the firing of particle guns at these geometries. This method features a single class which can create a simulation by using just three parameters.
 
 ## Trying it out with Docker
 
