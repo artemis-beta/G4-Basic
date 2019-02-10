@@ -2,6 +2,10 @@
 
 The purpose of this module is to greatly simplify the creation of basic geometries and the firing of particle guns at these geometries. This method features a single class which can great a simulation by using just three parameters.
 
+## Trying it out with Docker
+
+Even without GEANT4 installed on your system you can still try out G4-Basic via Docker, I have prepared a docker image with the software [here](https://hub.docker.com/r/artemisbeta/geant4). Make sure you run the container with `-u 0` so you can install git and clone this repository.
+
 ## Parsing of Units
 
 Before discussing G4-Basic I would firstly like to introduce the unit parser. Traditionally units can be imported from the `Geant4` module and then used multiplicatively, e.g. 10 metres being `10*G4.m`. To cut back further the requirements for running GEANT4 I have built in string parsing which is able to recognise a unit, and if it exists within the module, do the multiplication for you. For example `'10m'` as an argument would yield the same result.
