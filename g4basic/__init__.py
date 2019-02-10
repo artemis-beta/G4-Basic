@@ -7,7 +7,27 @@ import logging
 
 logging.basicConfig()
 
-_phys_list_dict = ['QGSP_BERT', 'FTFP_BERT']
+_phys_lists = [
+    'FTFP_BERT',
+    'FTFP_BERT_ATL',
+    'FTFP_BERT_HP',
+    'FTFP_BERT_TRV',
+    'FTFP_INCLXX',
+    'FTFP_INCLXX_HP',
+    'FTF_BIC',
+    'LBE',
+    'NuBeam',
+    'QBBC',
+    'QGSP_BERT',
+    'QGSP_BERT_HP',
+    'QGSP_BIC',
+    'QGSP_BIC_AllHP',
+    'QGSP_BIC_HP',
+    'QGSP_FTFP_BERT',
+    'QGSP_INCLXX',
+    'QGSP_INCLXX_HP'.
+    'QGS_BIC']
+    'Shielding']
 
 _colour_dict = { 'red'   : (1,0,0,1), 'green'   : (0,1,0,1),
                  'blue'  : (0,0,1,1), 'yellow'  : (1,1,0,1),
@@ -31,6 +51,47 @@ def isBoostArgumentError(exception):
 class G4Session(object):
     def __init__(self, world_material='AIR', volumes_dict=None,
                  gun_opts_dict=None, phys_list='QGSP_BERT'):
+        '''
+        G4-Basic class to start a session of GEANT4
+
+        Optional Arguments
+        ------------------
+
+        world_material   (string)          Name of Geant4 material.
+                                           Default: 'AIR'
+ 
+        volumes_dict     (dict)            Dictionary of volumes (see below)
+
+        gun_opts_dict    (dict)            Dictionary of Particle gun parameters
+                                           (see below)
+
+        phys_list        (string)          Name of GEANT4 Physics List (see below)
+
+
+        Volumes Dictionary
+        ------------------
+
+        {
+              'Volume1' : {'vol_type'   : 'Box',
+                           'position'   : (0, 0, 0),
+                           'dimensions' : ('10m', '10m', '3m'),
+                           'material'   : 'Si'},
+              ...
+        }
+
+        Particle Gun Dictionary
+        -----------------------
+
+        {'particle' : 'e-', 'energy' : '100GeV', 'direction' : (0,0,1),
+         'position : (0, 0, '-15m')}
+
+ 
+        Physics Lists
+        -------------
+
+        {}
+        '''.format(', '.format(_phys_lists))
+
         self._logger = logging.getLogger('G4Basic')
         self._logger.setLevel('INFO')
         self._constructs = self._initialise(phys_list)
@@ -83,7 +144,7 @@ class G4Session(object):
         g4py.ezgeom.Construct()
         g4py.NISTmaterials.Construct()
         try:
-             assert phys_list in _phys_list_dict
+             assert phys_list in _phys_lists
         except AssertionError as e:
              self._logger.error("Physics List not found, options are: {}".format(' '.join(_phys_list_dict)))
         G4.gRunManager.SetUserInitialization(getattr(G4, phys_list)())
@@ -98,6 +159,31 @@ class G4Session(object):
         g4py.ezgeom.ResizeWorld(*self._parse_units(dimensions))
      
     def addVolume(self, name, material, vol_type, dimensions, position, colour='red'):
+        '''
+        Add a new volume to the Geometry
+
+        Arguments
+        ---------
+
+        name       (string)                  Volume name
+        
+        material   (string)                  GEANT4 material, e.g. 'Si'
+
+        vol_type   (string)                  Volume type, e.g. 'Box'
+
+        dimensions (float, float, float)     Dimensions as either floats or 
+                   (string, string, string)  strings. e.g. (1,1,2) or ('1cm', '1cm', '2cm')
+
+        position   (float, float, float)     Position as either strings or floats
+                   (string, string, string)
+
+        Optional Arguments
+        ------------------
+
+        colour     (string)                  Colour of volume
+
+        ''' 
+
         try:
             assert vol_type in _g4_vol_types
         except AssertionError as e:
@@ -123,6 +209,32 @@ class G4Session(object):
             raise e
 
     def addParticleGun(self, particle, position, energy=None, direction=None, momentum=None):
+        '''
+        Create a particle gun if one has not already been initialised
+
+        Arguments
+        ---------
+
+        particle         (string)                  Particle to be fired
+
+        position         (float, float, float)     Position of gun as either
+                         (string, string, string)  floats or strings
+
+       
+        Optional Arguments
+        ------------------
+
+        Note: If momentum is set, energy and momentum direction are ignored
+
+
+        energy           (float) or (string)       Energy of particle
+
+        direction        (float, float, float)     Direction vector of particle
+ 
+        momentum         (float, float, float)     Momentum of particle
+                         (string, string, string)
+
+        '''
         self._pgun = g4py.ParticleGun.Construct()
         self._pgun.SetParticleByName(particle)
         position = self._parse_units(position)
@@ -141,6 +253,25 @@ class G4Session(object):
             
     def runSimulation(self, nevts=1, viewer='OGLIX', hits=True, trajectories='smooth',
                       logo=False, view=(80,20)):
+        '''
+        Run the simulation, showing the geometry visually and firing the particle gun
+
+        Optional Arguments
+        ------------------
+
+        nevts        (int)           Number of events (Default : 1)
+
+        viewer       (string)        Viewer to use (Default : OGLIX)
+
+        hits         (bool)          Show particle hits
+
+        trajectories (bool/string)   Show trajectories, if 'smooth' turn on
+                                     smooth trajectories
+
+        logo         (bool/string)   Show the Geant4 logo, option '2d' also included
+      
+        view         (float, float)  Angle of view (theta, phi)
+        '''
         self._ui = G4.G4UImanager.GetUIpointer()
         self._ui.ApplyCommand('/run/initialize')
         self._ui.ApplyCommand('/vis/open {}'.format(viewer))
