@@ -197,15 +197,15 @@ class G4Session(object):
                                                                 *self._parse_units(dimensions))
             _color = G4.G4Color(*_colour_dict[colour.lower()])
             self._log_vols[name].SetColor(_color)
-            self._log_vols[name].PlaceIt(G4.G4ThreeVector(*position))
+            self._log_vols[name].PlaceIt(G4.G4ThreeVector(*self._parse_units(position)))
 
         except Exception as e:
             if isBoostArgumentError(e):
                 self._logger.error('Invalid Arguments for Volume Creation')
                 self._logger.error(_g4_vol_types[vol_type])
                 self._logger.error('Arguments:\n\tMaterial: {}\n\tDimension: {}\n\tPosition: {}'.format(material, 
-                                   ', '.join([str(i) for i in dimensions]),
-                                   ', '.join([str(i) for i in position])))
+                                   ', '.join([str(self._parse_units(i)) for i in dimensions]),
+                                   ', '.join([str(self._parse_units(i)) for i in position])))
             raise e
 
     def addParticleGun(self, particle, position, energy=None, direction=None, momentum=None):
@@ -252,7 +252,7 @@ class G4Session(object):
             self._pgun.SetParticleMomentumDirection(G4.G4ThreeVector(*direction))
             
     def runSimulation(self, nevts=1, viewer='OGLIX', hits=True, trajectories='smooth',
-                      logo=False, view=(80,20)):
+                      logo=False, view=(80,20), style='wireframe'):
         '''
         Run the simulation, showing the geometry visually and firing the particle gun
 
@@ -271,11 +271,14 @@ class G4Session(object):
         logo         (bool/string)   Show the Geant4 logo, option '2d' also included
       
         view         (float, float)  Angle of view (theta, phi)
+
+        style        (string)        'wireframe'/'surface' styles of objects
         '''
         self._ui = G4.G4UImanager.GetUIpointer()
         self._ui.ApplyCommand('/run/initialize')
         self._ui.ApplyCommand('/vis/open {}'.format(viewer))
         self._ui.ApplyCommand('/vis/viewer/set/viewpointThetaPhi {} {}'.format(*view))
+        self._ui.ApplyCommand('/viw/viewer/set/style {}'.format(style))
         self._ui.ApplyCommand('/vis/drawVolume')
         if hits:
             self._ui.ApplyCommand('/vis/scene/add/hits')
