@@ -43,6 +43,10 @@ _g4_vol_types = {'Box'    : 'CreateBoxVolume(G4Material, dx, dy, dz)',
                             'dphi=360*deg, theta0=0, dtheta=180.*deg)', 
                  'Orb'    : 'CreateOrbVolume(G4material, rmax)'}
 
+def listMaterials():
+    g4py.NISTmaterials.Construct()
+    print(G4.gMaterialTable)
+
 def isBoostArgumentError(exception):
     if 'Boost.Python.ArgumentError' in str(type(exception)):
         return True
