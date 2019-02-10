@@ -50,6 +50,12 @@ my_session.addVolume('Calo', 'Pb', 'Box', ('10m', '10m', '3m'), (0., 0., '-20m')
 my_session.addParticleGun('e-', (0, 0, '-20m'), energy='3GeV', direction=(0,0,1))
 ```
 
+An instance of the `G4Session` class also allows specification of Physics List `phys_list` a full list of which is available in the `help` function for this class:
+
+```
+my_session = g4basic.G4Session(volumes_dict=volume_dict, guns_opt_dict=pgun_dict, phys_list='QGSP_BERT')
+```
+
 To run the simulation we use the `runSimulation` command, by default the viewer utilised uses OpenGL `OGLIX`, shows the particle hits and trajectories, creates a single event and positions the camera at a theta-phi angle of (80,20):
 
 ```
